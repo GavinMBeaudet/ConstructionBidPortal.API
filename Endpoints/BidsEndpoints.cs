@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConstructionBidPortal.API.Data;
 using ConstructionBidPortal.API.Models;
+using ConstructionBidPortal.API.DTOs;
 
 namespace ConstructionBidPortal.API.Endpoints
 {
@@ -17,12 +18,24 @@ namespace ConstructionBidPortal.API.Endpoints
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Bid>>> GetBids()
+        public async Task<ActionResult<IEnumerable<Bid>>> GetBids([FromQuery] int? projectId, [FromQuery] int? contractorId)
         {
-            return await _context.Bids
+            var query = _context.Bids
                 .Include(b => b.Project)
                 .Include(b => b.Contractor)
-                .ToListAsync();
+                .AsQueryable();
+
+            if (projectId.HasValue)
+            {
+                query = query.Where(b => b.ProjectId == projectId.Value);
+            }
+
+            if (contractorId.HasValue)
+            {
+                query = query.Where(b => b.ContractorId == contractorId.Value);
+            }
+
+            return await query.ToListAsync();
         }
 
         [HttpGet("{id}")]
@@ -42,8 +55,19 @@ namespace ConstructionBidPortal.API.Endpoints
         }
 
         [HttpPost]
-        public async Task<ActionResult<Bid>> CreateBid(Bid bid)
+        public async Task<ActionResult<Bid>> CreateBid(CreateBidDto bidDto)
         {
+            var bid = new Bid
+            {
+                ProjectId = bidDto.ProjectId,
+                ContractorId = bidDto.ContractorId,
+                BidAmount = bidDto.BidAmount,
+                TimelineInDays = bidDto.TimelineInDays,
+                Proposal = bidDto.Proposal,
+                Status = "Submitted",
+                DateSubmitted = DateTime.Now
+            };
+
             _context.Bids.Add(bid);
             await _context.SaveChangesAsync();
 
@@ -51,14 +75,29 @@ namespace ConstructionBidPortal.API.Endpoints
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateBid(int id, Bid bid)
+        public async Task<IActionResult> UpdateBid(int id, UpdateBidDto bidDto)
         {
-            if (id != bid.Id)
+            if (id != bidDto.Id)
             {
                 return BadRequest();
             }
 
-            _context.Entry(bid).State = EntityState.Modified;
+            var existingBid = await _context.Bids.FindAsync(id);
+            if (existingBid == null)
+            {
+                return NotFound();
+            }
+
+            // Authorization: Only the contractor who created the bid can update it
+            if (existingBid.ContractorId != bidDto.ContractorId)
+            {
+                return Forbid("You can only edit your own bids.");
+            }
+
+            existingBid.BidAmount = bidDto.BidAmount;
+            existingBid.TimelineInDays = bidDto.TimelineInDays;
+            existingBid.Proposal = bidDto.Proposal;
+            existingBid.Status = bidDto.Status;
 
             try
             {
@@ -80,12 +119,18 @@ namespace ConstructionBidPortal.API.Endpoints
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteBid(int id)
+        public async Task<IActionResult> DeleteBid(int id, [FromQuery] int userId)
         {
             var bid = await _context.Bids.FindAsync(id);
             if (bid == null)
             {
                 return NotFound();
+            }
+
+            // Authorization: Only the contractor who created the bid can delete it
+            if (bid.ContractorId != userId)
+            {
+                return Forbid("You can only delete your own bids.");
             }
 
             _context.Bids.Remove(bid);

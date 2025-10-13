@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConstructionBidPortal.API.Data;
 using ConstructionBidPortal.API.Models;
+using ConstructionBidPortal.API.DTOs;
 
 namespace ConstructionBidPortal.API.Endpoints
 {
@@ -44,8 +45,20 @@ namespace ConstructionBidPortal.API.Endpoints
         }
 
         [HttpPost]
-        public async Task<ActionResult<Project>> CreateProject(Project project)
+        public async Task<ActionResult<Project>> CreateProject(CreateProjectDto projectDto)
         {
+            var project = new Project
+            {
+                OwnerId = projectDto.OwnerId,
+                Title = projectDto.Title,
+                Description = projectDto.Description,
+                Location = projectDto.Location,
+                Budget = projectDto.Budget,
+                BidDeadline = projectDto.BidDeadline,
+                Status = projectDto.Status,
+                DateCreated = DateTime.Now
+            };
+
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
 
@@ -53,14 +66,31 @@ namespace ConstructionBidPortal.API.Endpoints
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateProject(int id, Project project)
+        public async Task<IActionResult> UpdateProject(int id, UpdateProjectDto projectDto)
         {
-            if (id != project.Id)
+            if (id != projectDto.Id)
             {
                 return BadRequest();
             }
 
-            _context.Entry(project).State = EntityState.Modified;
+            var existingProject = await _context.Projects.FindAsync(id);
+            if (existingProject == null)
+            {
+                return NotFound();
+            }
+
+            // Authorization: Only the owner can update their project
+            if (existingProject.OwnerId != projectDto.OwnerId)
+            {
+                return Forbid("You can only edit your own projects.");
+            }
+
+            existingProject.Title = projectDto.Title;
+            existingProject.Description = projectDto.Description;
+            existingProject.Location = projectDto.Location;
+            existingProject.Budget = projectDto.Budget;
+            existingProject.BidDeadline = projectDto.BidDeadline;
+            existingProject.Status = projectDto.Status;
 
             try
             {
@@ -82,12 +112,18 @@ namespace ConstructionBidPortal.API.Endpoints
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteProject(int id)
+        public async Task<IActionResult> DeleteProject(int id, [FromQuery] int userId)
         {
             var project = await _context.Projects.FindAsync(id);
             if (project == null)
             {
                 return NotFound();
+            }
+
+            // Authorization: Only the owner can delete their project
+            if (project.OwnerId != userId)
+            {
+                return Forbid("You can only delete your own projects.");
             }
 
             _context.Projects.Remove(project);
