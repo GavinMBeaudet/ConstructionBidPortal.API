@@ -81,6 +81,20 @@ namespace ConstructionBidPortal.API.Endpoints
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
 
+            // Add project categories
+            if (projectDto.CategoryIds != null && projectDto.CategoryIds.Any())
+            {
+                foreach (var categoryId in projectDto.CategoryIds)
+                {
+                    _context.Add(new ProjectCategory
+                    {
+                        ProjectId = project.Id,
+                        CategoryId = categoryId
+                    });
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
         }
 
@@ -92,7 +106,10 @@ namespace ConstructionBidPortal.API.Endpoints
                 return BadRequest();
             }
 
-            var existingProject = await _context.Projects.FindAsync(id);
+            var existingProject = await _context.Projects
+                .Include(p => p.ProjectCategories)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            
             if (existingProject == null)
             {
                 return NotFound();
@@ -110,6 +127,23 @@ namespace ConstructionBidPortal.API.Endpoints
             existingProject.Budget = projectDto.Budget;
             existingProject.BidDeadline = projectDto.BidDeadline;
             existingProject.Status = projectDto.Status;
+
+            // Update categories
+            if (projectDto.CategoryIds != null)
+            {
+                // Remove existing categories
+                _context.RemoveRange(existingProject.ProjectCategories);
+                
+                // Add new categories
+                foreach (var categoryId in projectDto.CategoryIds)
+                {
+                    existingProject.ProjectCategories.Add(new ProjectCategory
+                    {
+                        ProjectId = id,
+                        CategoryId = categoryId
+                    });
+                }
+            }
 
             try
             {

@@ -9,6 +9,7 @@ namespace ConstructionBidPortal.API.DTOs
         public decimal Budget { get; set; }
         public DateTime BidDeadline { get; set; }
         public string Status { get; set; } = "Open";
+        public List<int> CategoryIds { get; set; } = new List<int>();
     }
 
     public class UpdateProjectDto
@@ -22,5 +23,6 @@ namespace ConstructionBidPortal.API.DTOs
         public DateTime BidDeadline { get; set; }
         public string Status { get; set; } = "Open";
         public DateTime DateCreated { get; set; }
+        public List<int> CategoryIds { get; set; } = new List<int>();
     }
 }
