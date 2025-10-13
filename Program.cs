@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ConstructionBidPortal.API.Data;
+using ConstructionBidPortal.API.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +42,9 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthorization();
 app.MapControllers();
+
+// Map minimal API endpoints
+app.MapCategoriesEndpoints();
 
 // Create database and apply migrations on startup
 using (var scope = app.Services.CreateScope())

@@ -18,11 +18,30 @@ namespace ConstructionBidPortal.API.Endpoints
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
+        public async Task<ActionResult<IEnumerable<Project>>> GetProjects([FromQuery] string? categories)
         {
-            return await _context.Projects
+            var query = _context.Projects
                 .Include(p => p.Owner)
-                .ToListAsync();
+                .Include(p => p.ProjectCategories)
+                    .ThenInclude(pc => pc.Category)
+                .AsQueryable();
+
+            // Filter by categories if provided
+            if (!string.IsNullOrEmpty(categories))
+            {
+                var categoryIds = categories.Split(',')
+                    .Select(c => int.TryParse(c.Trim(), out var id) ? id : 0)
+                    .Where(id => id > 0)
+                    .ToList();
+
+                if (categoryIds.Any())
+                {
+                    query = query.Where(p => p.ProjectCategories
+                        .Any(pc => categoryIds.Contains(pc.CategoryId)));
+                }
+            }
+
+            return await query.ToListAsync();
         }
 
         [HttpGet("{id}")]
