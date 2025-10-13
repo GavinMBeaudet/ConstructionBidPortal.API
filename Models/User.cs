@@ -9,5 +9,9 @@ namespace ConstructionBidPortal.API.Models
         public string LastName { get; set; } = string.Empty;
         public string UserType { get; set; } = string.Empty; // "Owner" or "Contractor"
         public DateTime DateCreated { get; set; } = DateTime.Now;
+
+        // Navigation properties
+        public List<Project> OwnedProjects { get; set; } = new List<Project>();
+        public List<Bid> ContractorBids { get; set; } = new List<Bid>();
     }
 }
