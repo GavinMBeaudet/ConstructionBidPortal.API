@@ -15,10 +15,22 @@ namespace ConstructionBidPortal.API.Data
             // Add Categories
             var categories = new Category[]
             {
-                new Category { Name = "Commercial", Description = "Commercial building projects" },
-                new Category { Name = "Residential", Description = "Residential building projects" },
-                new Category { Name = "Industrial", Description = "Industrial building projects" },
-                new Category { Name = "Infrastructure", Description = "Infrastructure projects" }
+                new Category { Name = "Commercial", Description = "Office buildings, retail spaces, restaurants, hotels" },
+                new Category { Name = "Residential", Description = "Single-family homes, apartments, condominiums" },
+                new Category { Name = "Industrial", Description = "Factories, warehouses, manufacturing facilities" },
+                new Category { Name = "Infrastructure", Description = "Roads, bridges, utilities, transportation systems" },
+                new Category { Name = "Renovation/Remodeling", Description = "Interior/exterior updates, modernization projects" },
+                new Category { Name = "Electrical", Description = "Wiring, lighting systems, electrical installations" },
+                new Category { Name = "Plumbing", Description = "Pipe systems, fixtures, water/sewage installations" },
+                new Category { Name = "HVAC", Description = "Heating, ventilation, air conditioning systems" },
+                new Category { Name = "Roofing", Description = "Roof installation, repair, replacement" },
+                new Category { Name = "Concrete/Masonry", Description = "Foundation, concrete work, brickwork, stonework" },
+                new Category { Name = "Carpentry", Description = "Framing, trim work, cabinetry, custom woodwork" },
+                new Category { Name = "Landscaping", Description = "Site preparation, grading, outdoor aesthetics" },
+                new Category { Name = "Demolition", Description = "Structure removal, site clearance" },
+                new Category { Name = "Painting/Finishing", Description = "Interior/exterior painting, decorative finishes" },
+                new Category { Name = "Flooring", Description = "Tile, hardwood, carpet, laminate installation" },
+                new Category { Name = "Green/Sustainable", Description = "Eco-friendly, LEED certified, energy-efficient projects" }
             };
 
             context.Categories.AddRange(categories);
