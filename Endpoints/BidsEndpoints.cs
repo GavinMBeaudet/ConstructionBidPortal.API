@@ -1,26 +1,21 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConstructionBidPortal.API.Data;
 using ConstructionBidPortal.API.Models;
 using ConstructionBidPortal.API.DTOs;
 
-namespace ConstructionBidPortal.API.Endpoints
+namespace ConstructionBidPortal.API.Endpoints;
+
+public static class BidsEndpoints
 {
-    [ApiController]
-    [Route("api/bids")]
-    public class BidsEndpoints : ControllerBase
+    public static void MapBidsEndpoints(this WebApplication app)
     {
-        private readonly BidPortalContext _context;
-
-        public BidsEndpoints(BidPortalContext context)
+        // GET /api/bids - Get all bids with optional filtering
+        app.MapGet("/api/bids", async (
+            BidPortalContext context,
+            int? projectId,
+            int? contractorId) =>
         {
-            _context = context;
-        }
-
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Bid>>> GetBids([FromQuery] int? projectId, [FromQuery] int? contractorId)
-        {
-            var query = _context.Bids
+            var query = context.Bids
                 .Include(b => b.Project)
                 .Include(b => b.Contractor)
                 .AsQueryable();
@@ -35,27 +30,32 @@ namespace ConstructionBidPortal.API.Endpoints
                 query = query.Where(b => b.ContractorId == contractorId.Value);
             }
 
-            return await query.ToListAsync();
-        }
+            var bids = await query.ToListAsync();
+            return Results.Ok(bids);
+        });
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Bid>> GetBid(int id)
+        // GET /api/bids/{id} - Get a specific bid by ID
+        app.MapGet("/api/bids/{id}", async (
+            int id,
+            BidPortalContext context) =>
         {
-            var bid = await _context.Bids
+            var bid = await context.Bids
                 .Include(b => b.Project)
                 .Include(b => b.Contractor)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (bid == null)
             {
-                return NotFound();
+                return Results.NotFound();
             }
 
-            return bid;
-        }
+            return Results.Ok(bid);
+        });
 
-        [HttpPost]
-        public async Task<ActionResult<Bid>> CreateBid(CreateBidDto bidDto)
+        // POST /api/bids - Create a new bid
+        app.MapPost("/api/bids", async (
+            CreateBidDto bidDto,
+            BidPortalContext context) =>
         {
             var bid = new Bid
             {
@@ -68,30 +68,35 @@ namespace ConstructionBidPortal.API.Endpoints
                 DateSubmitted = DateTime.Now
             };
 
-            _context.Bids.Add(bid);
-            await _context.SaveChangesAsync();
+            context.Bids.Add(bid);
+            await context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetBid), new { id = bid.Id }, bid);
-        }
+            return Results.Created($"/api/bids/{bid.Id}", bid);
+        });
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateBid(int id, UpdateBidDto bidDto)
+        // PUT /api/bids/{id} - Update an existing bid
+        app.MapPut("/api/bids/{id}", async (
+            int id,
+            UpdateBidDto bidDto,
+            BidPortalContext context) =>
         {
             if (id != bidDto.Id)
             {
-                return BadRequest();
+                return Results.BadRequest("ID mismatch");
             }
 
-            var existingBid = await _context.Bids.FindAsync(id);
+            var existingBid = await context.Bids.FindAsync(id);
             if (existingBid == null)
             {
-                return NotFound();
+                return Results.NotFound();
             }
 
             // Authorization: Only the contractor who created the bid can update it
             if (existingBid.ContractorId != bidDto.ContractorId)
             {
-                return Forbid("You can only edit your own bids.");
+                return Results.Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    detail: "You can only edit your own bids.");
             }
 
             existingBid.BidAmount = bidDto.BidAmount;
@@ -101,13 +106,14 @@ namespace ConstructionBidPortal.API.Endpoints
 
             try
             {
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!BidExists(id))
+                var exists = await context.Bids.AnyAsync(e => e.Id == id);
+                if (!exists)
                 {
-                    return NotFound();
+                    return Results.NotFound();
                 }
                 else
                 {
@@ -115,33 +121,91 @@ namespace ConstructionBidPortal.API.Endpoints
                 }
             }
 
-            return NoContent();
-        }
+            return Results.NoContent();
+        });
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteBid(int id, [FromQuery] int userId)
+        // DELETE /api/bids/{id} - Delete a bid
+        app.MapDelete("/api/bids/{id}", async (
+            int id,
+            int userId,
+            BidPortalContext context) =>
         {
-            var bid = await _context.Bids.FindAsync(id);
+            var bid = await context.Bids.FindAsync(id);
             if (bid == null)
             {
-                return NotFound();
+                return Results.NotFound();
             }
 
             // Authorization: Only the contractor who created the bid can delete it
             if (bid.ContractorId != userId)
             {
-                return Forbid("You can only delete your own bids.");
+                return Results.Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    detail: "You can only delete your own bids.");
             }
 
-            _context.Bids.Remove(bid);
-            await _context.SaveChangesAsync();
+            context.Bids.Remove(bid);
+            await context.SaveChangesAsync();
 
-            return NoContent();
-        }
+            return Results.NoContent();
+        });
 
-        private bool BidExists(int id)
+        // PUT /api/bids/{id}/award - Award a bid to a contractor
+        app.MapPut("/api/bids/{id}/award", async (
+            int id,
+            int userId,
+            BidPortalContext context) =>
         {
-            return _context.Bids.Any(e => e.Id == id);
-        }
+            var bid = await context.Bids
+                .Include(b => b.Project)
+                .Include(b => b.Contractor)
+                .FirstOrDefaultAsync(b => b.Id == id);
+
+            if (bid == null)
+            {
+                return Results.NotFound();
+            }
+
+            // Authorization: Only the project owner can award bids
+            if (bid.Project.OwnerId != userId)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    detail: "Only the project owner can award bids.");
+            }
+
+            // Business rule: Check if project is still open
+            if (bid.Project.Status != "Open")
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    detail: "This project has already been awarded.");
+            }
+
+            // Award the bid
+            bid.Status = "Accepted";
+            bid.Project.Status = "Awarded";
+
+            // Reject all other bids for this project
+            var otherBids = await context.Bids
+                .Where(b => b.ProjectId == bid.ProjectId && b.Id != id)
+                .ToListAsync();
+
+            foreach (var otherBid in otherBids)
+            {
+                if (otherBid.Status == "Pending" || otherBid.Status == "Submitted")
+                {
+                    otherBid.Status = "Rejected";
+                }
+            }
+
+            await context.SaveChangesAsync();
+
+            return Results.Ok(new
+            {
+                message = "Bid awarded successfully",
+                contractorName = $"{bid.Contractor.FirstName} {bid.Contractor.LastName}"
+            });
+        });
     }
 }

@@ -5,14 +5,17 @@ using ConstructionBidPortal.API.Endpoints;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-    });
 builder.Services.AddDbContext<BidPortalContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Configure JSON options for serialization
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.PropertyNameCaseInsensitive = true;
+    options.SerializerOptions.MaxDepth = 128;
+});
 
 // Configure CORS to allow requests from the frontend
 builder.Services.AddCors(options =>
@@ -40,10 +43,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors();
-app.UseAuthorization();
-app.MapControllers();
 
 // Map minimal API endpoints
+app.MapAuthEndpoints();
+app.MapUsersEndpoints();
+app.MapProjectsEndpoints();
+app.MapBidsEndpoints();
 app.MapCategoriesEndpoints();
 
 // Create database and apply migrations on startup

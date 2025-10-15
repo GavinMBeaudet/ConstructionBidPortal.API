@@ -1,32 +1,26 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConstructionBidPortal.API.Data;
 using ConstructionBidPortal.API.Models;
 using ConstructionBidPortal.API.DTOs;
 
-namespace ConstructionBidPortal.API.Endpoints
+namespace ConstructionBidPortal.API.Endpoints;
+
+public static class AuthEndpoints
 {
-    [ApiController]
-    [Route("api/auth")]
-    public class AuthEndpoints : ControllerBase
+    public static void MapAuthEndpoints(this WebApplication app)
     {
-        private readonly BidPortalContext _context;
-
-        public AuthEndpoints(BidPortalContext context)
-        {
-            _context = context;
-        }
-
-        [HttpPost("register")]
-        public async Task<ActionResult<UserDto>> Register(RegisterDto registerDto)
+        // POST /api/auth/register - Register a new user
+        app.MapPost("/api/auth/register", async (
+            RegisterDto registerDto,
+            BidPortalContext context) =>
         {
             // Check if user already exists
-            var existingUser = await _context.Users
+            var existingUser = await context.Users
                 .FirstOrDefaultAsync(u => u.Email == registerDto.Email);
 
             if (existingUser != null)
             {
-                return Conflict("A user with this email already exists.");
+                return Results.Conflict("A user with this email already exists.");
             }
 
             // Create new user (in production, hash the password!)
@@ -40,8 +34,8 @@ namespace ConstructionBidPortal.API.Endpoints
                 DateCreated = DateTime.Now
             };
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
 
             var userDto = new UserDto
             {
@@ -52,24 +46,30 @@ namespace ConstructionBidPortal.API.Endpoints
                 UserType = user.UserType
             };
 
-            return CreatedAtAction(nameof(Register), new { id = user.Id }, userDto);
-        }
+            return Results.Created($"/api/auth/register/{user.Id}", userDto);
+        });
 
-        [HttpPost("login")]
-        public async Task<ActionResult<UserDto>> Login(LoginDto loginDto)
+        // POST /api/auth/login - Login an existing user
+        app.MapPost("/api/auth/login", async (
+            LoginDto loginDto,
+            BidPortalContext context) =>
         {
-            var user = await _context.Users
+            var user = await context.Users
                 .FirstOrDefaultAsync(u => u.Email == loginDto.Email);
 
             if (user == null)
             {
-                return Unauthorized("Invalid email or password.");
+                return Results.Problem(
+                    statusCode: StatusCodes.Status401Unauthorized,
+                    detail: "Invalid email or password.");
             }
 
             // TODO: In production, verify hashed password
             if (user.PasswordHash != loginDto.Password)
             {
-                return Unauthorized("Invalid email or password.");
+                return Results.Problem(
+                    statusCode: StatusCodes.Status401Unauthorized,
+                    detail: "Invalid email or password.");
             }
 
             var userDto = new UserDto
@@ -81,14 +81,14 @@ namespace ConstructionBidPortal.API.Endpoints
                 UserType = user.UserType
             };
 
-            return Ok(userDto);
-        }
+            return Results.Ok(userDto);
+        });
 
-        [HttpPost("logout")]
-        public IActionResult Logout()
+        // POST /api/auth/logout - Logout user
+        app.MapPost("/api/auth/logout", () =>
         {
             // In a real app with sessions/JWT, you'd invalidate the token here
-            return NoContent();
-        }
+            return Results.NoContent();
+        });
     }
 }

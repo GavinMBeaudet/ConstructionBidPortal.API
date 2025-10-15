@@ -1,68 +1,69 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConstructionBidPortal.API.Data;
 using ConstructionBidPortal.API.Models;
 
-namespace ConstructionBidPortal.API.Endpoints
+namespace ConstructionBidPortal.API.Endpoints;
+
+public static class UsersEndpoints
 {
-    [ApiController]
-    [Route("api/users")]
-    public class UsersEndpoints : ControllerBase
+    public static void MapUsersEndpoints(this WebApplication app)
     {
-        private readonly BidPortalContext _context;
-
-        public UsersEndpoints(BidPortalContext context)
+        // GET /api/users - Get all users
+        app.MapGet("/api/users", async (BidPortalContext context) =>
         {
-            _context = context;
-        }
+            var users = await context.Users.ToListAsync();
+            return Results.Ok(users);
+        });
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        // GET /api/users/{id} - Get a specific user by ID
+        app.MapGet("/api/users/{id}", async (
+            int id,
+            BidPortalContext context) =>
         {
-            return await _context.Users.ToListAsync();
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
+            var user = await context.Users.FindAsync(id);
 
             if (user == null)
             {
-                return NotFound();
+                return Results.NotFound();
             }
 
-            return user;
-        }
+            return Results.Ok(user);
+        });
 
-        [HttpPost]
-        public async Task<ActionResult<User>> CreateUser(User user)
+        // POST /api/users - Create a new user
+        app.MapPost("/api/users", async (
+            User user,
+            BidPortalContext context) =>
         {
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
-        }
+            return Results.Created($"/api/users/{user.Id}", user);
+        });
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUser(int id, User user)
+        // PUT /api/users/{id} - Update an existing user
+        app.MapPut("/api/users/{id}", async (
+            int id,
+            User user,
+            BidPortalContext context) =>
         {
             if (id != user.Id)
             {
-                return BadRequest();
+                return Results.BadRequest("ID mismatch");
             }
 
-            _context.Entry(user).State = EntityState.Modified;
+            context.Entry(user).State = EntityState.Modified;
 
             try
             {
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!UserExists(id))
+                var exists = await context.Users.AnyAsync(e => e.Id == id);
+                if (!exists)
                 {
-                    return NotFound();
+                    return Results.NotFound();
                 }
                 else
                 {
@@ -70,27 +71,24 @@ namespace ConstructionBidPortal.API.Endpoints
                 }
             }
 
-            return NoContent();
-        }
+            return Results.NoContent();
+        });
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
+        // DELETE /api/users/{id} - Delete a user
+        app.MapDelete("/api/users/{id}", async (
+            int id,
+            BidPortalContext context) =>
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await context.Users.FindAsync(id);
             if (user == null)
             {
-                return NotFound();
+                return Results.NotFound();
             }
 
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
+            context.Users.Remove(user);
+            await context.SaveChangesAsync();
 
-            return NoContent();
-        }
-
-        private bool UserExists(int id)
-        {
-            return _context.Users.Any(e => e.Id == id);
-        }
+            return Results.NoContent();
+        });
     }
 }

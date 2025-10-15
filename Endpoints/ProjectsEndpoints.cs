@@ -14,29 +14,63 @@ public static class ProjectsEndpoints
             BidPortalContext context,
             string? categories) =>
         {
-            var query = context.Projects
-                .Include(p => p.Owner)
-                .Include(p => p.ProjectCategories)
-                    .ThenInclude(pc => pc.Category)
-                .AsQueryable();
-
-            // Filter by categories if provided
-            if (!string.IsNullOrEmpty(categories))
+            try
             {
-                var categoryIds = categories.Split(',')
-                    .Select(c => int.TryParse(c.Trim(), out var id) ? id : 0)
-                    .Where(id => id > 0)
-                    .ToList();
+                var query = context.Projects
+                    .Include(p => p.Owner)
+                    .Include(p => p.ProjectCategories)
+                        .ThenInclude(pc => pc.Category)
+                    .AsQueryable();
 
-                if (categoryIds.Any())
+                // Filter by categories if provided
+                if (!string.IsNullOrEmpty(categories))
                 {
-                    query = query.Where(p => p.ProjectCategories
-                        .Any(pc => categoryIds.Contains(pc.CategoryId)));
-                }
-            }
+                    var categoryIds = categories.Split(',')
+                        .Select(c => int.TryParse(c.Trim(), out var id) ? id : 0)
+                        .Where(id => id > 0)
+                        .ToList();
 
-            var projects = await query.ToListAsync();
-            return Results.Ok(projects);
+                    if (categoryIds.Any())
+                    {
+                        query = query.Where(p => p.ProjectCategories
+                            .Any(pc => categoryIds.Contains(pc.CategoryId)));
+                    }
+                }
+
+                var projects = await query.ToListAsync();
+                // Project DTO to avoid circular references and huge payloads
+                var projectDtos = projects.Select(p => new ProjectDto
+                {
+                    Id = p.Id,
+                    Title = p.Title,
+                    Description = p.Description,
+                    Location = p.Location,
+                    Budget = p.Budget,
+                    BidDeadline = p.BidDeadline,
+                    Status = p.Status,
+                    DateCreated = p.DateCreated,
+                    OwnerId = p.OwnerId,
+                    Owner = new OwnerDto
+                    {
+                        Id = p.Owner.Id,
+                        FirstName = p.Owner.FirstName,
+                        LastName = p.Owner.LastName,
+                        Email = p.Owner.Email
+                    },
+                    Categories = p.ProjectCategories.Select(pc => new CategoryDto
+                    {
+                        CategoryId = pc.CategoryId,
+                        Name = pc.Category.Name
+                    }).ToList()
+                }).ToList();
+                return Results.Ok(projectDtos);
+            }
+            catch (Exception ex)
+            {
+                // Log the error (in production, use a logger)
+                Console.WriteLine($"[ERROR] /api/projects: {ex.Message}\n{ex.StackTrace}");
+                return Results.Problem($"Internal server error: {ex.Message}");
+            }
         });
 
         // GET /api/projects/owner/{userId}/with-stats - Get owner's projects with bid statistics
