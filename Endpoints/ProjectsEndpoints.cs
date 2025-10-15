@@ -1,26 +1,20 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConstructionBidPortal.API.Data;
 using ConstructionBidPortal.API.Models;
 using ConstructionBidPortal.API.DTOs;
 
-namespace ConstructionBidPortal.API.Endpoints
+namespace ConstructionBidPortal.API.Endpoints;
+
+public static class ProjectsEndpoints
 {
-    [ApiController]
-    [Route("api/projects")]
-    public class ProjectsEndpoints : ControllerBase
+    public static void MapProjectsEndpoints(this WebApplication app)
     {
-        private readonly BidPortalContext _context;
-
-        public ProjectsEndpoints(BidPortalContext context)
+        // GET /api/projects - Get all projects with optional category filtering
+        app.MapGet("/api/projects", async (
+            BidPortalContext context,
+            string? categories) =>
         {
-            _context = context;
-        }
-
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Project>>> GetProjects([FromQuery] string? categories)
-        {
-            var query = _context.Projects
+            var query = context.Projects
                 .Include(p => p.Owner)
                 .Include(p => p.ProjectCategories)
                     .ThenInclude(pc => pc.Category)
@@ -41,13 +35,63 @@ namespace ConstructionBidPortal.API.Endpoints
                 }
             }
 
-            return await query.ToListAsync();
-        }
+            var projects = await query.ToListAsync();
+            return Results.Ok(projects);
+        });
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Project>> GetProject(int id)
+        // GET /api/projects/owner/{userId}/with-stats - Get owner's projects with bid statistics
+        app.MapGet("/api/projects/owner/{userId}/with-stats", async (
+            int userId,
+            BidPortalContext context) =>
         {
-            var project = await _context.Projects
+            var projects = await context.Projects
+                .Where(p => p.OwnerId == userId)
+                .Include(p => p.Owner)
+                .Include(p => p.ProjectCategories)
+                    .ThenInclude(pc => pc.Category)
+                .Include(p => p.Bids)
+                    .ThenInclude(b => b.Contractor)
+                .ToListAsync();
+
+            var projectStats = projects.Select(p => new
+            {
+                p.Id,
+                p.Title,
+                p.Description,
+                p.Location,
+                p.Budget,
+                p.BidDeadline,
+                p.Status,
+                p.DateCreated,
+                p.OwnerId,
+                Owner = new
+                {
+                    p.Owner.Id,
+                    p.Owner.FirstName,
+                    p.Owner.LastName,
+                    p.Owner.Email
+                },
+                ProjectCategories = p.ProjectCategories.Select(pc => new
+                {
+                    pc.CategoryId,
+                    pc.Category.Name,
+                    pc.Category.Description
+                }),
+                BidCount = p.Bids.Count,
+                AvgBid = p.Bids.Any() ? p.Bids.Average(b => b.BidAmount) : 0,
+                LowestBid = p.Bids.Any() ? p.Bids.Min(b => b.BidAmount) : 0,
+                HighestBid = p.Bids.Any() ? p.Bids.Max(b => b.BidAmount) : 0
+            });
+
+            return Results.Ok(projectStats);
+        });
+
+        // GET /api/projects/{id} - Get a specific project by ID
+        app.MapGet("/api/projects/{id}", async (
+            int id,
+            BidPortalContext context) =>
+        {
+            var project = await context.Projects
                 .Include(p => p.Owner)
                 .Include(p => p.Bids)
                     .ThenInclude(b => b.Contractor)
@@ -57,14 +101,16 @@ namespace ConstructionBidPortal.API.Endpoints
 
             if (project == null)
             {
-                return NotFound();
+                return Results.NotFound();
             }
 
-            return project;
-        }
+            return Results.Ok(project);
+        });
 
-        [HttpPost]
-        public async Task<ActionResult<Project>> CreateProject(CreateProjectDto projectDto)
+        // POST /api/projects - Create a new project
+        app.MapPost("/api/projects", async (
+            CreateProjectDto projectDto,
+            BidPortalContext context) =>
         {
             var project = new Project
             {
@@ -78,47 +124,52 @@ namespace ConstructionBidPortal.API.Endpoints
                 DateCreated = DateTime.Now
             };
 
-            _context.Projects.Add(project);
-            await _context.SaveChangesAsync();
+            context.Projects.Add(project);
+            await context.SaveChangesAsync();
 
             // Add project categories
             if (projectDto.CategoryIds != null && projectDto.CategoryIds.Any())
             {
                 foreach (var categoryId in projectDto.CategoryIds)
                 {
-                    _context.Add(new ProjectCategory
+                    context.Add(new ProjectCategory
                     {
                         ProjectId = project.Id,
                         CategoryId = categoryId
                     });
                 }
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
 
-            return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
-        }
+            return Results.Created($"/api/projects/{project.Id}", project);
+        });
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateProject(int id, UpdateProjectDto projectDto)
+        // PUT /api/projects/{id} - Update an existing project
+        app.MapPut("/api/projects/{id}", async (
+            int id,
+            UpdateProjectDto projectDto,
+            BidPortalContext context) =>
         {
             if (id != projectDto.Id)
             {
-                return BadRequest();
+                return Results.BadRequest("ID mismatch");
             }
 
-            var existingProject = await _context.Projects
+            var existingProject = await context.Projects
                 .Include(p => p.ProjectCategories)
                 .FirstOrDefaultAsync(p => p.Id == id);
-            
+
             if (existingProject == null)
             {
-                return NotFound();
+                return Results.NotFound();
             }
 
             // Authorization: Only the owner can update their project
             if (existingProject.OwnerId != projectDto.OwnerId)
             {
-                return Forbid("You can only edit your own projects.");
+                return Results.Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    detail: "You can only edit your own projects.");
             }
 
             existingProject.Title = projectDto.Title;
@@ -132,8 +183,8 @@ namespace ConstructionBidPortal.API.Endpoints
             if (projectDto.CategoryIds != null)
             {
                 // Remove existing categories
-                _context.RemoveRange(existingProject.ProjectCategories);
-                
+                context.RemoveRange(existingProject.ProjectCategories);
+
                 // Add new categories
                 foreach (var categoryId in projectDto.CategoryIds)
                 {
@@ -147,13 +198,14 @@ namespace ConstructionBidPortal.API.Endpoints
 
             try
             {
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!ProjectExists(id))
+                var exists = await context.Projects.AnyAsync(e => e.Id == id);
+                if (!exists)
                 {
-                    return NotFound();
+                    return Results.NotFound();
                 }
                 else
                 {
@@ -161,33 +213,33 @@ namespace ConstructionBidPortal.API.Endpoints
                 }
             }
 
-            return NoContent();
-        }
+            return Results.NoContent();
+        });
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteProject(int id, [FromQuery] int userId)
+        // DELETE /api/projects/{id} - Delete a project
+        app.MapDelete("/api/projects/{id}", async (
+            int id,
+            int userId,
+            BidPortalContext context) =>
         {
-            var project = await _context.Projects.FindAsync(id);
+            var project = await context.Projects.FindAsync(id);
             if (project == null)
             {
-                return NotFound();
+                return Results.NotFound();
             }
 
             // Authorization: Only the owner can delete their project
             if (project.OwnerId != userId)
             {
-                return Forbid("You can only delete your own projects.");
+                return Results.Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    detail: "You can only delete your own projects.");
             }
 
-            _context.Projects.Remove(project);
-            await _context.SaveChangesAsync();
+            context.Projects.Remove(project);
+            await context.SaveChangesAsync();
 
-            return NoContent();
-        }
-
-        private bool ProjectExists(int id)
-        {
-            return _context.Projects.Any(e => e.Id == id);
-        }
+            return Results.NoContent();
+        });
     }
 }
