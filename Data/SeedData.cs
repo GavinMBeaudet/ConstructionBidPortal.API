@@ -66,7 +66,7 @@ namespace ConstructionBidPortal.API.Data
             var projects = new List<Project>();
             var rnd = new Random(42);
             string[] locations = { "New York, NY", "Chicago, IL", "Los Angeles, CA", "Houston, TX", "Miami, FL", "Seattle, WA", "Denver, CO", "Boston, MA", "Phoenix, AZ", "Atlanta, GA" };
-            string[] statuses = { "Open", "Awarded", "Closed" };
+            string[] statuses = { "Open", "In Progress" };
             for (int i = 0; i < 20; i++)
             {
                 var owner = users[rnd.Next(0, 10)];

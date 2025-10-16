@@ -31,7 +31,32 @@ public static class BidsEndpoints
             }
 
             var bids = await query.ToListAsync();
-            return Results.Ok(bids);
+            var bidDtos = bids.Select(b => new BidDto
+            {
+                Id = b.Id,
+                ProjectId = b.ProjectId,
+                ContractorId = b.ContractorId,
+                BidAmount = b.BidAmount,
+                TimelineInDays = b.TimelineInDays,
+                Proposal = b.Proposal,
+                Status = b.Status,
+                DateSubmitted = b.DateSubmitted,
+                Project = new ProjectSummaryDto
+                {
+                    Id = b.Project.Id,
+                    Title = b.Project.Title,
+                    Location = b.Project.Location,
+                    Budget = b.Project.Budget
+                },
+                Contractor = new ContractorSummaryDto
+                {
+                    Id = b.Contractor.Id,
+                    FirstName = b.Contractor.FirstName,
+                    LastName = b.Contractor.LastName,
+                    Email = b.Contractor.Email
+                }
+            }).ToList();
+            return Results.Ok(bidDtos);
         });
 
         // GET /api/bids/{id} - Get a specific bid by ID
@@ -102,7 +127,6 @@ public static class BidsEndpoints
             existingBid.BidAmount = bidDto.BidAmount;
             existingBid.TimelineInDays = bidDto.TimelineInDays;
             existingBid.Proposal = bidDto.Proposal;
-            existingBid.Status = bidDto.Status;
 
             try
             {

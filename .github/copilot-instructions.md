@@ -1,71 +1,41 @@
-# Construction Bid Portal - AI Coding Guidelines
+# Copilot Instructions for construction-bid-portal-server
 
-## Architecture Overview
-This is a full-stack construction bidding platform with ASP.NET Core Minimal API backend and React frontend.
+## Project Overview
+- **Monorepo** with two main parts:
+  - `api/ConstructionBidPortal.API/`: ASP.NET Core Web API (C#)
+  - `client/`: React frontend (Vite, JavaScript)
 
-**Backend Structure:**
-- `api/ConstructionBidPortal.API/` - Main API project using .NET 8 Minimal APIs
-- Entity Framework Core with SQLite database
-- Domain models: `User` (Owner/Contractor), `Project`, `Bid`, `Category`
-- DTOs for API request/response separation
-- Extension method pattern for endpoint registration
+## Architecture & Data Flow
+- **API**: Handles authentication, projects, bids, categories, and users. Organized by feature in `Endpoints/`, `Models/`, `DTOs/`, and `Data/`.
+- **Frontend**: React app with pages in `src/pages/`, shared components in `src/components/`, and API calls in `src/services/`.
+- **Communication**: Frontend uses `apiService.js` and `authService.js` to interact with the backend API.
 
-**Frontend Structure:**
-- `client/` - React 19 app with Vite build system
-- React Router for SPA navigation
-- Context API for authentication state management
-- Service layer pattern for API communication
+## Developer Workflows
+- **Build API**: `dotnet build api/ConstructionBidPortal.API/ConstructionBidPortal.API.csproj`
+- **Run API (dev)**: `dotnet watch run --project api/ConstructionBidPortal.API/ConstructionBidPortal.API.csproj`
+- **Build Client**: `npm install` then `npm run dev` in `client/`
+- **Tasks**: Use VS Code tasks for common commands (see `.vscode/tasks.json`)
 
-## Key Conventions & Patterns
+## Conventions & Patterns
+- **API Endpoints**: Grouped by resource in `Endpoints/`. Use minimal APIs pattern.
+- **Data Models**: In `Models/`, mapped to DTOs in `DTOs/` for API responses.
+- **Database**: Entity Framework Core migrations in `Migrations/`. Context in `Data/BidPortalContext.cs`.
+- **Frontend Routing**: React Router, with protected routes via `PrivateRoute.jsx`.
+- **State Management**: Context API for auth (`contexts/AuthContext.jsx`).
+- **Modals**: Use `ConfirmModal.jsx` for confirmations.
 
-### Authentication
-- Session-based auth (not JWT) - user data stored in localStorage
-- User types: `"Owner"` or `"Contractor"` (string literals)
-- Passwords currently stored as plain text (marked TODO for BCrypt hashing)
-- Auth context provides `user`, `login()`, `register()`, `logout()` methods
+## Integration Points
+- **API <-> Client**: All API calls go through `src/services/apiService.js`.
+- **Auth**: JWT-based, handled in both API and `authService.js`.
 
-### API Design
-- RESTful endpoints under `/api/` prefix
-- Minimal API style with extension methods (e.g., `app.MapAuthEndpoints()`)
-- SQLite database auto-created on startup with seed data
-- CORS configured for GitHub Pages (`https://gavinmbeaudet.github.io`) and local dev
-- JSON serialization: camelCase, ignore cycles, max depth 128
+## Examples
+- Add a new API resource: create model, DTO, endpoint, and update context/migrations.
+- Add a new page: create in `src/pages/`, add route in `App.jsx`.
 
-### Database Relationships
-- Projects belong to Owners, have many Bids and Categories
-- Bids belong to Projects and Contractors
-- Many-to-many Projects↔Categories via `ProjectCategory` junction table
-- Composite primary key on `ProjectCategory` (ProjectId, CategoryId)
+## Tips
+- Keep API and client in sync for DTO changes.
+- Use VS Code tasks for consistent builds.
+- Check `appsettings.Development.json` for local config.
 
-### Status Values
-- Projects: `"Open"` (default)
-- Bids: `"Submitted"` (default), can be awarded
-
-### Development Workflow
-- **API**: Runs on `http://localhost:5090`, Swagger at `/swagger`
-- **Frontend**: Runs on `http://localhost:3000`, proxies `/api/*` to API
-- **Database**: SQLite file `ConstructionBidPortal.db` created automatically
-- **Build**: Use VS Code tasks - `build` (API), `npm: install - client`, `npm: dev - client`
-
-### File Organization Examples
-- **Models**: `api/ConstructionBidPortal.API/Models/` - EF entities with navigation properties
-- **DTOs**: `api/ConstructionBidPortal.API/DTOs/` - Request/response contracts
-- **Endpoints**: `api/ConstructionBidPortal.API/Endpoints/` - API route definitions
-- **Services**: `client/src/services/` - API client functions
-- **Pages**: `client/src/pages/` - React route components
-- **Context**: `client/src/contexts/` - React context providers
-
-### Common Patterns
-- **API Responses**: Use `Results.Ok()`, `Results.Created()`, `Results.Conflict()`, etc.
-- **Error Handling**: Throw descriptive error messages from service functions
-- **Navigation**: Protected routes use `<PrivateRoute>` wrapper component
-- **Data Fetching**: Async/await with try/catch in React components
-- **State Management**: Auth context for user state, local component state for UI
-
-### Deployment Notes
-- Frontend configured for GitHub Pages deployment
-- API expects CORS from `https://gavinmbeaudet.github.io`
-- Database file included in `.gitignore` (recreated on startup)
-
-When modifying this codebase, maintain the separation between Owner and Contractor user types, ensure proper navigation property loading in EF queries, and follow the established DTO pattern for API contracts.</content>
-<parameter name="filePath">c:\Users\King Vitaman\workspace\construction-bid-portal-server\.github\copilot-instructions.md
+---
+For questions, review the structure above and check for patterns in the relevant folders.
