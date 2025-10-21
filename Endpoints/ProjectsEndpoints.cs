@@ -112,9 +112,9 @@ public static class ProjectsEndpoints
                     pc.Category.Description
                 }),
                 BidCount = p.Bids.Count,
-                AvgBid = p.Bids.Any() ? p.Bids.Average(b => b.BidAmount) : 0,
-                LowestBid = p.Bids.Any() ? p.Bids.Min(b => b.BidAmount) : 0,
-                HighestBid = p.Bids.Any() ? p.Bids.Max(b => b.BidAmount) : 0
+                AvgBid = p.Bids.Any() ? p.Bids.Average(b => b.FinalContractPrice) : 0,
+                LowestBid = p.Bids.Any() ? p.Bids.Min(b => b.FinalContractPrice) : 0,
+                HighestBid = p.Bids.Any() ? p.Bids.Max(b => b.FinalContractPrice) : 0
             });
 
             return Results.Ok(projectStats);

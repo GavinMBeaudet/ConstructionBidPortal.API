@@ -3,6 +3,7 @@ using System;
 using ConstructionBidPortal.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConstructionBidPortal.API.Migrations
 {
     [DbContext(typeof(BidPortalContext))]
-    partial class BidPortalContextModelSnapshot : ModelSnapshot
+    [Migration("20251021215251_RemoveBidAmountAndTimelineInDays")]
+    partial class RemoveBidAmountAndTimelineInDays
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");

@@ -3,6 +3,7 @@ using System;
 using ConstructionBidPortal.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConstructionBidPortal.API.Migrations
 {
     [DbContext(typeof(BidPortalContext))]
-    partial class BidPortalContextModelSnapshot : ModelSnapshot
+    [Migration("20251021202559_AddTennesseeBidFormFields")]
+    partial class AddTennesseeBidFormFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -25,6 +28,9 @@ namespace ConstructionBidPortal.API.Migrations
 
                     b.Property<string>("AdditionalProvisions")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("BidAmount")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("CommencementDays")
@@ -190,6 +196,9 @@ namespace ConstructionBidPortal.API.Migrations
                     b.Property<string>("TerminationDate")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("TimelineInDays")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("WarrantyYears")
                         .IsRequired()

@@ -36,8 +36,6 @@ public static class BidsEndpoints
                 Id = b.Id,
                 ProjectId = b.ProjectId,
                 ContractorId = b.ContractorId,
-                BidAmount = b.BidAmount,
-                TimelineInDays = b.TimelineInDays,
                 Proposal = b.Proposal,
                 Status = b.Status,
                 DateSubmitted = b.DateSubmitted,
@@ -54,7 +52,52 @@ public static class BidsEndpoints
                     FirstName = b.Contractor.FirstName,
                     LastName = b.Contractor.LastName,
                     Email = b.Contractor.Email
-                }
+                },
+                ContractorName = b.ContractorName,
+                ContractorAddress = b.ContractorAddress,
+                ContractorCity = b.ContractorCity,
+                ContractorState = b.ContractorState,
+                ContractorZip = b.ContractorZip,
+                ContractorLicense = b.ContractorLicense,
+                OwnerName = b.OwnerName,
+                OwnerAddress = b.OwnerAddress,
+                OwnerCity = b.OwnerCity,
+                OwnerState = b.OwnerState,
+                OwnerZip = b.OwnerZip,
+                LenderName = b.LenderName,
+                LenderAddress = b.LenderAddress,
+                LenderCity = b.LenderCity,
+                LenderState = b.LenderState,
+                LenderZip = b.LenderZip,
+                ProjectNumber = b.ProjectNumber,
+                ProjectAddress = b.ProjectAddress,
+                ProjectCity = b.ProjectCity,
+                ProjectState = b.ProjectState,
+                ProjectZip = b.ProjectZip,
+                ProjectDescription = b.ProjectDescription,
+                OtherContractDocs = b.OtherContractDocs,
+                WorkInvolved = b.WorkInvolved,
+                CommencementType = b.CommencementType,
+                CommencementDays = b.CommencementDays,
+                CommencementOther = b.CommencementOther,
+                CompletionType = b.CompletionType,
+                CompletionDays = b.CompletionDays,
+                CompletionOther = b.CompletionOther,
+                FinalContractPrice = b.FinalContractPrice,
+                ProgressRetentionPercent = b.ProgressRetentionPercent,
+                ProgressRetentionDays = b.ProgressRetentionDays,
+                FinalPaymentDays = b.FinalPaymentDays,
+                TerminationDate = b.TerminationDate,
+                ProposalDate = b.ProposalDate,
+                WarrantyYears = b.WarrantyYears,
+                AdditionalProvisions = b.AdditionalProvisions,
+                ContractorSignatures = string.IsNullOrEmpty(b.ContractorSignaturesJson)
+    ? new List<SignatureDto>()
+    : System.Text.Json.JsonSerializer.Deserialize<List<SignatureDto>>(b.ContractorSignaturesJson) ?? new List<SignatureDto>(),
+
+                OwnerSignatures = string.IsNullOrEmpty(b.OwnerSignaturesJson)
+    ? new List<SignatureDto>()
+    : System.Text.Json.JsonSerializer.Deserialize<List<SignatureDto>>(b.OwnerSignaturesJson) ?? new List<SignatureDto>()
             }).ToList();
             return Results.Ok(bidDtos);
         });
@@ -82,15 +125,63 @@ public static class BidsEndpoints
             CreateBidDto bidDto,
             BidPortalContext context) =>
         {
+            // Backend validation for required Tennessee bid form fields
+            if (string.IsNullOrWhiteSpace(bidDto.ContractorName) ||
+                string.IsNullOrWhiteSpace(bidDto.OwnerName) ||
+                bidDto.FinalContractPrice <= 0 ||
+                bidDto.ContractorSignatures == null || bidDto.ContractorSignatures.Count == 0 ||
+                bidDto.OwnerSignatures == null || bidDto.OwnerSignatures.Count == 0)
+            {
+                return Results.BadRequest("Missing required Tennessee bid form fields: Contractor Name, Owner Name, Final Contract Price, Contractor/Owner Signatures.");
+            }
+
             var bid = new Bid
             {
                 ProjectId = bidDto.ProjectId,
                 ContractorId = bidDto.ContractorId,
-                BidAmount = bidDto.BidAmount,
-                TimelineInDays = bidDto.TimelineInDays,
                 Proposal = bidDto.Proposal,
                 Status = "Submitted",
-                DateSubmitted = DateTime.Now
+                DateSubmitted = DateTime.Now,
+                ContractorName = bidDto.ContractorName,
+                ContractorAddress = bidDto.ContractorAddress,
+                ContractorCity = bidDto.ContractorCity,
+                ContractorState = bidDto.ContractorState,
+                ContractorZip = bidDto.ContractorZip,
+                ContractorLicense = bidDto.ContractorLicense,
+                OwnerName = bidDto.OwnerName,
+                OwnerAddress = bidDto.OwnerAddress,
+                OwnerCity = bidDto.OwnerCity,
+                OwnerState = bidDto.OwnerState,
+                OwnerZip = bidDto.OwnerZip,
+                LenderName = bidDto.LenderName,
+                LenderAddress = bidDto.LenderAddress,
+                LenderCity = bidDto.LenderCity,
+                LenderState = bidDto.LenderState,
+                LenderZip = bidDto.LenderZip,
+                ProjectNumber = bidDto.ProjectNumber,
+                ProjectAddress = bidDto.ProjectAddress,
+                ProjectCity = bidDto.ProjectCity,
+                ProjectState = bidDto.ProjectState,
+                ProjectZip = bidDto.ProjectZip,
+                ProjectDescription = bidDto.ProjectDescription,
+                OtherContractDocs = bidDto.OtherContractDocs,
+                WorkInvolved = bidDto.WorkInvolved,
+                CommencementType = bidDto.CommencementType,
+                CommencementDays = bidDto.CommencementDays,
+                CommencementOther = bidDto.CommencementOther,
+                CompletionType = bidDto.CompletionType,
+                CompletionDays = bidDto.CompletionDays,
+                CompletionOther = bidDto.CompletionOther,
+                FinalContractPrice = bidDto.FinalContractPrice,
+                ProgressRetentionPercent = bidDto.ProgressRetentionPercent,
+                ProgressRetentionDays = bidDto.ProgressRetentionDays,
+                FinalPaymentDays = bidDto.FinalPaymentDays,
+                TerminationDate = bidDto.TerminationDate,
+                ProposalDate = bidDto.ProposalDate,
+                WarrantyYears = bidDto.WarrantyYears,
+                AdditionalProvisions = bidDto.AdditionalProvisions,
+                ContractorSignaturesJson = bidDto.ContractorSignatures != null ? System.Text.Json.JsonSerializer.Serialize(bidDto.ContractorSignatures) : "",
+                OwnerSignaturesJson = bidDto.OwnerSignatures != null ? System.Text.Json.JsonSerializer.Serialize(bidDto.OwnerSignatures) : ""
             };
 
             context.Bids.Add(bid);
@@ -124,8 +215,6 @@ public static class BidsEndpoints
                     detail: "You can only edit your own bids.");
             }
 
-            existingBid.BidAmount = bidDto.BidAmount;
-            existingBid.TimelineInDays = bidDto.TimelineInDays;
             existingBid.Proposal = bidDto.Proposal;
 
             try
