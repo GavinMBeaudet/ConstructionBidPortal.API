@@ -9,6 +9,16 @@ public static class ProjectsEndpoints
 {
     public static void MapProjectsEndpoints(this WebApplication app)
     {
+        // TEMP DEBUG: Print owner2's user ID and all projects with OwnerId
+        app.MapGet("/api/debug/owner2-projects", async (BidPortalContext context) =>
+        {
+            var owner2 = await context.Users.FirstOrDefaultAsync(u => u.Email == "owner2@test.com");
+            var projects = await context.Projects.ToListAsync();
+            return Results.Ok(new {
+                owner2Id = owner2?.Id,
+                projects = projects.Select(p => new { p.Id, p.OwnerId, p.Title }).ToList()
+            });
+        });
         // GET /api/projects - Get all projects with optional category filtering
         app.MapGet("/api/projects", async (
             BidPortalContext context,

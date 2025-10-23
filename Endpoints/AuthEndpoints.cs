@@ -43,7 +43,12 @@ public static class AuthEndpoints
                 Email = user.Email,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                UserType = user.UserType
+                UserType = user.UserType,
+                Address = user.Address,
+                City = user.City,
+                State = user.State,
+                Zip = user.Zip,
+                LicenseNumber = user.LicenseNumber
             };
 
             return Results.Created($"/api/auth/register/{user.Id}", userDto);
@@ -78,7 +83,12 @@ public static class AuthEndpoints
                 Email = user.Email,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                UserType = user.UserType
+                UserType = user.UserType,
+                Address = user.Address,
+                City = user.City,
+                State = user.State,
+                Zip = user.Zip,
+                LicenseNumber = user.LicenseNumber
             };
 
             return Results.Ok(userDto);

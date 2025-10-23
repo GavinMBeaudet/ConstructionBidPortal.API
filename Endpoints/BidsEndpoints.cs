@@ -125,14 +125,13 @@ public static class BidsEndpoints
             CreateBidDto bidDto,
             BidPortalContext context) =>
         {
-            // Backend validation for required Tennessee bid form fields
+            // Backend validation for required Tennessee bid form fields (OwnerSignatures not required on creation)
             if (string.IsNullOrWhiteSpace(bidDto.ContractorName) ||
                 string.IsNullOrWhiteSpace(bidDto.OwnerName) ||
                 bidDto.FinalContractPrice <= 0 ||
-                bidDto.ContractorSignatures == null || bidDto.ContractorSignatures.Count == 0 ||
-                bidDto.OwnerSignatures == null || bidDto.OwnerSignatures.Count == 0)
+                bidDto.ContractorSignatures == null || bidDto.ContractorSignatures.Count == 0)
             {
-                return Results.BadRequest("Missing required Tennessee bid form fields: Contractor Name, Owner Name, Final Contract Price, Contractor/Owner Signatures.");
+                return Results.BadRequest("Missing required Tennessee bid form fields: Contractor Name, Owner Name, Final Contract Price, Contractor Signatures.");
             }
 
             var bid = new Bid
@@ -140,7 +139,7 @@ public static class BidsEndpoints
                 ProjectId = bidDto.ProjectId,
                 ContractorId = bidDto.ContractorId,
                 Proposal = bidDto.Proposal,
-                Status = "Submitted",
+                Status = "Pending",
                 DateSubmitted = DateTime.Now,
                 ContractorName = bidDto.ContractorName,
                 ContractorAddress = bidDto.ContractorAddress,
@@ -267,7 +266,8 @@ public static class BidsEndpoints
         app.MapPut("/api/bids/{id}/award", async (
             int id,
             int userId,
-            BidPortalContext context) =>
+            BidPortalContext context,
+            dynamic acceptanceInfo) =>
         {
             var bid = await context.Bids
                 .Include(b => b.Project)
@@ -295,9 +295,19 @@ public static class BidsEndpoints
                     detail: "This project has already been awarded.");
             }
 
-            // Award the bid
+            // Require owner acceptance info (handle JsonElement)
+            System.Text.Json.JsonElement elem = acceptanceInfo;
+            if (!elem.TryGetProperty("ownerSignatures", out var ownerSignaturesElem) || ownerSignaturesElem.ValueKind != System.Text.Json.JsonValueKind.Array || ownerSignaturesElem.GetArrayLength() == 0)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    detail: "Owner signatures are required to award a bid.");
+            }
+
             bid.Status = "Accepted";
             bid.Project.Status = "Awarded";
+            // Store owner acceptance info as array
+            bid.OwnerSignaturesJson = ownerSignaturesElem.GetRawText();
 
             // Reject all other bids for this project
             var otherBids = await context.Bids
@@ -306,7 +316,7 @@ public static class BidsEndpoints
 
             foreach (var otherBid in otherBids)
             {
-                if (otherBid.Status == "Pending" || otherBid.Status == "Submitted")
+                if (otherBid.Status == "Pending")
                 {
                     otherBid.Status = "Rejected";
                 }

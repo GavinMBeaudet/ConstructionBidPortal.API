@@ -6,7 +6,7 @@ namespace ConstructionBidPortal.API.Models
         public int ProjectId { get; set; }
         public int ContractorId { get; set; }
         public string Proposal { get; set; } = string.Empty;
-        public string Status { get; set; } = "Submitted";
+        public string Status { get; set; } = string.Empty; // "Submitted", "Awarded", "Rejected"
         public DateTime DateSubmitted { get; set; } = DateTime.Now;
 
         // Tennessee Official Bid Form fields
